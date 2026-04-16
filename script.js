@@ -87,7 +87,7 @@ function normalizeSessions(payload) {
     .map((record, index) => {
       const type = pickValue(record, ["type", "session_type", "category", "track", "group"]) || "Other";
       const name = pickValue(record, ["name", "title", "session", "session_name", "event"]) || `Session ${index + 1}`;
-      const speaker = pickValue(record, ["speaker", "presenter", "facilitator", "host", "faculty"]) || "Speaker TBD";
+      const speaker = pickValue(record, ["speaker", "presenter", "facilitator", "host", "faculty"]) || "Speaker to be determined";
       const description = pickValue(record, ["description", "abstract", "summary", "details", "body"]) || "No description provided.";
       const id =
         pickValue(record, ["id", "session_id", "uuid", "slug"]) ||
@@ -258,7 +258,7 @@ function loadState() {
       preferences: parsed.preferences && typeof parsed.preferences === "object" ? parsed.preferences : {},
       teamMembers: Array.isArray(parsed.teamMembers) ? parsed.teamMembers : []
     };
-  } catch (_error) {
+  } catch (_) {
     return { endpoint: DEFAULT_ENDPOINT, sessions: [], preferences: {}, teamMembers: [] };
   }
 }
