@@ -8,7 +8,11 @@ const elements = {
   sessions: document.getElementById("sessions"),
   template: document.getElementById("sessionTemplate"),
   teamMembersInput: document.getElementById("teamMembersInput"),
-  saveTeamMembers: document.getElementById("saveTeamMembers")
+  saveTeamMembers: document.getElementById("saveTeamMembers"),
+  settingsPanel: document.getElementById("settingsPanel"),
+  dayFilter: document.getElementById("dayFilter"),
+  timeFilter: document.getElementById("timeFilter"),
+  typeFilter: document.getElementById("typeFilter")
 };
 
 const sampleSessions = [
@@ -17,37 +21,72 @@ const sampleSessions = [
     type: "Keynote",
     name: "Opening Keynote: AI and Admissions",
     speaker: "Taylor Rivera",
-    description: "A high-level overview of current trends and opportunities for teams."
+    description: "A high-level overview of current trends and opportunities for teams.",
+    day: "Day 1",
+    time: "9:00 AM"
   },
   {
     id: "sample-workshop",
     type: "Workshop",
     name: "Building Better Yield Campaigns",
     speaker: "Jordan Lee",
-    description: "Hands-on examples for campaign design, segmentation, and measurement."
+    description: "Hands-on examples for campaign design, segmentation, and measurement.",
+    day: "Day 1",
+    time: "2:00 PM"
   }
 ];
 
 let state = loadState();
+state.filters = state.filters || { day: "", time: "", type: "" };
+state.settingsOpen = state.settingsOpen ?? false;
 
 elements.endpoint.value = state.endpoint || DEFAULT_ENDPOINT;
 elements.teamMembersInput.value = (state.teamMembers || []).join(", ");
+elements.settingsPanel.open = state.settingsOpen;
 
 wireEvents();
 loadSessions();
 
 function wireEvents() {
-  elements.loadSessions.addEventListener("click", () => {
+  elements.loadSessions.addEventListener("click", async () => {
     state.endpoint = elements.endpoint.value.trim() || DEFAULT_ENDPOINT;
     saveState();
-    loadSessions();
+    await loadSessions();
+    state.settingsOpen = false;
+    elements.settingsPanel.open = false;
+    saveState();
   });
 
   elements.saveTeamMembers.addEventListener("click", () => {
     state.teamMembers = normalizeNameList(elements.teamMembersInput.value);
     elements.teamMembersInput.value = state.teamMembers.join(", ");
+    state.settingsOpen = false;
+    elements.settingsPanel.open = false;
     saveState();
-    renderSessions(state.sessions || []);
+    renderFilteredSessions();
+  });
+
+  elements.settingsPanel.addEventListener("toggle", () => {
+    state.settingsOpen = elements.settingsPanel.open;
+    saveState();
+  });
+
+  elements.dayFilter.addEventListener("change", () => {
+    state.filters.day = elements.dayFilter.value;
+    saveState();
+    renderFilteredSessions();
+  });
+
+  elements.timeFilter.addEventListener("change", () => {
+    state.filters.time = elements.timeFilter.value;
+    saveState();
+    renderFilteredSessions();
+  });
+
+  elements.typeFilter.addEventListener("change", () => {
+    state.filters.type = elements.typeFilter.value;
+    saveState();
+    renderFilteredSessions();
   });
 }
 
@@ -72,13 +111,14 @@ async function loadSessions() {
 
     setStatus(`Loaded ${sessions.length} sessions from endpoint.`);
   } catch (error) {
-    sessions = sampleSessions;
+    sessions = normalizeSessions(sampleSessions);
     setStatus(`Could not load endpoint (${error.message}). Showing sample sessions.`);
   }
 
   state.sessions = sessions;
   saveState();
-  renderSessions(sessions);
+  syncFilterControls();
+  renderFilteredSessions();
 }
 
 function normalizeSessions(payload) {
@@ -93,17 +133,99 @@ function normalizeSessions(payload) {
         pickValue(record, ["id", "session_id", "uuid", "slug"]) ||
         `${slugify(type)}-${slugify(name)}-${slugify(speaker)}`;
 
+      const schedule = deriveSchedule(record);
+
       return {
         id,
         type: String(type),
+        typeKey: slugify(type) || "uncategorized",
         name: String(name),
         speaker: String(speaker),
-        description: String(description)
+        description: String(description),
+        dayLabel: schedule.dayLabel,
+        dayKey: schedule.dayKey,
+        timeLabel: schedule.timeLabel,
+        timeKey: schedule.timeKey
       };
     })
     .filter((session) => session.name.trim().length);
 
   return deduplicateById(sessions);
+}
+
+function deriveSchedule(record) {
+  const dayRaw = pickValue(record, ["day", "date", "session_date", "event_date", "start_date"]);
+  const timeRaw = pickValue(record, ["time", "session_time", "start_time", "hour"]);
+  const dateTimeRaw = pickValue(record, ["start", "start_at", "start_datetime", "datetime", "date_time"]);
+
+  const dateFromDateTime = parseDate(dateTimeRaw);
+
+  const dayLabel =
+    formatDayLabel(dayRaw) ||
+    (dateFromDateTime ? formatDateForDay(dateFromDateTime) : "Unscheduled");
+
+  const timeLabel =
+    formatTimeLabel(timeRaw) ||
+    (dateFromDateTime ? formatDateForTime(dateFromDateTime) : "Unscheduled");
+
+  return {
+    dayLabel,
+    dayKey: slugify(dayLabel) || "unscheduled",
+    timeLabel,
+    timeKey: slugify(timeLabel) || "unscheduled"
+  };
+}
+
+function parseDate(value) {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.valueOf()) ? null : parsed;
+}
+
+function formatDayLabel(value) {
+  if (!value) {
+    return "";
+  }
+
+  const raw = String(value).trim();
+  const parsed = parseDate(raw);
+  if (parsed) {
+    return formatDateForDay(parsed);
+  }
+
+  return raw;
+}
+
+function formatTimeLabel(value) {
+  if (!value) {
+    return "";
+  }
+
+  const raw = String(value).trim();
+  const parsed = parseDate(raw);
+  if (parsed) {
+    return formatDateForTime(parsed);
+  }
+
+  return raw;
+}
+
+function formatDateForDay(date) {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric"
+  }).format(date);
+}
+
+function formatDateForTime(date) {
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(date);
 }
 
 function extractRecords(payload) {
@@ -161,8 +283,77 @@ function deduplicateById(sessions) {
   });
 }
 
+function syncFilterControls() {
+  const sessions = state.sessions || [];
+  const dayOptions = createFilterOptions(sessions, "dayKey", "dayLabel");
+  const timeOptions = createFilterOptions(sessions, "timeKey", "timeLabel");
+  const typeOptions = createFilterOptions(sessions, "typeKey", "type");
+
+  setSelectOptions(elements.dayFilter, dayOptions, "All days", "day");
+  setSelectOptions(elements.timeFilter, timeOptions, "All times", "time");
+  setSelectOptions(elements.typeFilter, typeOptions, "All session types", "type");
+}
+
+function createFilterOptions(sessions, keyField, labelField) {
+  const optionMap = new Map();
+
+  sessions.forEach((session) => {
+    const key = session[keyField];
+    const label = session[labelField];
+    if (key && label && !optionMap.has(key)) {
+      optionMap.set(key, label);
+    }
+  });
+
+  return [...optionMap.entries()]
+    .map(([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function setSelectOptions(selectElement, options, allLabel, filterKey) {
+  const desiredValue = state.filters[filterKey] || "";
+  const availableValues = new Set(options.map((option) => option.value));
+  const nextValue = availableValues.has(desiredValue) ? desiredValue : "";
+
+  selectElement.innerHTML = "";
+
+  const allOption = document.createElement("option");
+  allOption.value = "";
+  allOption.textContent = allLabel;
+  selectElement.appendChild(allOption);
+
+  options.forEach((option) => {
+    const optionEl = document.createElement("option");
+    optionEl.value = option.value;
+    optionEl.textContent = option.label;
+    selectElement.appendChild(optionEl);
+  });
+
+  selectElement.value = nextValue;
+  state.filters[filterKey] = nextValue;
+}
+
+function renderFilteredSessions() {
+  const sessions = state.sessions || [];
+  const filtered = sessions.filter((session) => {
+    const dayMatches = !state.filters.day || session.dayKey === state.filters.day;
+    const timeMatches = !state.filters.time || session.timeKey === state.filters.time;
+    const typeMatches = !state.filters.type || session.typeKey === state.filters.type;
+    return dayMatches && timeMatches && typeMatches;
+  });
+
+  renderSessions(filtered);
+}
+
 function renderSessions(sessions) {
   elements.sessions.innerHTML = "";
+
+  if (!sessions.length) {
+    const empty = document.createElement("p");
+    empty.textContent = "No sessions match the selected filters.";
+    elements.sessions.appendChild(empty);
+    return;
+  }
 
   const grouped = new Map();
   sessions.forEach((session) => {
@@ -193,6 +384,7 @@ function renderSessions(sessions) {
         fragment.querySelector(".session-name").textContent = session.name;
         fragment.querySelector(".session-type").textContent = session.type;
         fragment.querySelector(".session-speaker").textContent = `Speaker: ${session.speaker}`;
+        fragment.querySelector(".session-meta").textContent = `${session.dayLabel} • ${session.timeLabel}`;
         fragment.querySelector(".session-description").textContent = session.description;
 
         const prefs = state.preferences?.[session.id] || {};
@@ -256,10 +448,19 @@ function loadState() {
       endpoint: parsed.endpoint || DEFAULT_ENDPOINT,
       sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
       preferences: parsed.preferences && typeof parsed.preferences === "object" ? parsed.preferences : {},
-      teamMembers: Array.isArray(parsed.teamMembers) ? parsed.teamMembers : []
+      teamMembers: Array.isArray(parsed.teamMembers) ? parsed.teamMembers : [],
+      filters: parsed.filters && typeof parsed.filters === "object" ? parsed.filters : { day: "", time: "", type: "" },
+      settingsOpen: Boolean(parsed.settingsOpen)
     };
   } catch (_) {
-    return { endpoint: DEFAULT_ENDPOINT, sessions: [], preferences: {}, teamMembers: [] };
+    return {
+      endpoint: DEFAULT_ENDPOINT,
+      sessions: [],
+      preferences: {},
+      teamMembers: [],
+      filters: { day: "", time: "", type: "" },
+      settingsOpen: false
+    };
   }
 }
 

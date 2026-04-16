@@ -13,22 +13,48 @@
   </header>
 
   <main>
-    <section class="panel">
-      <h2>Session Source</h2>
-      <label for="endpoint">JSON endpoint</label>
-      <div class="row">
-        <input id="endpoint" type="url" />
-        <button id="loadSessions" type="button">Load Sessions</button>
+    <details id="settingsPanel" class="panel settings-panel">
+      <summary>Settings</summary>
+      <div class="settings-content">
+        <section>
+          <h2>Session Source</h2>
+          <label for="endpoint">JSON endpoint</label>
+          <div class="row">
+            <input id="endpoint" type="url" />
+            <button id="loadSessions" type="button">Refresh Sessions</button>
+          </div>
+          <p id="status" role="status"></p>
+        </section>
+
+        <section>
+          <h2>Team Members</h2>
+          <label for="teamMembersInput">Comma-separated names</label>
+          <div class="row">
+            <input id="teamMembersInput" type="text" placeholder="Alex, Sam, Morgan" />
+            <button id="saveTeamMembers" type="button">Save Team</button>
+          </div>
+        </section>
       </div>
-      <p id="status" role="status"></p>
-    </section>
+    </details>
 
     <section class="panel">
-      <h2>Team Members</h2>
-      <label for="teamMembersInput">Comma-separated names</label>
-      <div class="row">
-        <input id="teamMembersInput" type="text" placeholder="Alex, Sam, Morgan" />
-        <button id="saveTeamMembers" type="button">Save Team</button>
+      <h2>Filters</h2>
+      <div class="filters">
+        <label for="dayFilter">Day
+          <select id="dayFilter">
+            <option value="">All days</option>
+          </select>
+        </label>
+        <label for="timeFilter">Time
+          <select id="timeFilter">
+            <option value="">All times</option>
+          </select>
+        </label>
+        <label for="typeFilter">Session type
+          <select id="typeFilter">
+            <option value="">All session types</option>
+          </select>
+        </label>
       </div>
     </section>
 
@@ -45,6 +71,7 @@
         <span class="session-type"></span>
       </header>
       <p class="session-speaker"></p>
+      <p class="session-meta"></p>
       <p class="session-description"></p>
       <div class="controls">
         <label><input class="interesting" type="checkbox" /> Looks interesting</label>

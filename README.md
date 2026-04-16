@@ -6,9 +6,11 @@ A GitHub Pages-friendly client-side app to plan conference attendance for your t
 
 - Fetches sessions from the provided JSON endpoint
 - Groups sessions by session type
+- Filters sessions by day, time, and session type
 - Tracks personal interest and personal attendance choices
 - Tracks team attendance assignments per session
 - Saves notes/comments per session
+- Keeps endpoint and team-member editing controls in a collapsible Settings panel
 - Persists planner data in browser `localStorage` (stateless hosting model)
 
 ## Usage
