@@ -55,12 +55,29 @@
             <option value="">All session types</option>
           </select>
         </label>
+        <label for="statusFilter">Team status
+          <select id="statusFilter">
+            <option value="">All sessions</option>
+            <option value="interested">Team interested</option>
+            <option value="going">Team going</option>
+          </select>
+        </label>
+        <label for="memberFilter">Team member
+          <select id="memberFilter">
+            <option value="">All team members</option>
+          </select>
+        </label>
       </div>
     </section>
 
     <section>
       <h2>Sessions</h2>
       <div id="sessions" class="sessions"></div>
+    </section>
+
+    <section>
+      <h2>Schedule</h2>
+      <div id="schedule" class="schedule"></div>
     </section>
   </main>
 
@@ -77,9 +94,7 @@
         <label><input class="interesting" type="checkbox" /> Looks interesting</label>
         <label><input class="attending" type="checkbox" /> I plan to attend</label>
       </div>
-      <label>Team attending (comma-separated)
-        <input class="team-attending" type="text" placeholder="Alex, Sam" />
-      </label>
+      <div class="team-controls"></div>
       <label>Notes / comments
         <textarea class="notes" rows="3" placeholder="Planning notes for this session"></textarea>
       </label>
