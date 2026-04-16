@@ -186,8 +186,8 @@ function deriveSchedule(record) {
 
   const dateFromDateTime = parseDate(dateTimeRaw);
   const dateFromDayRaw = parseDate(dayRaw);
-  const fallbackDate = !dateFromDateTime && !dateFromDayRaw ? mapConferenceDate(dayRaw) : null;
-  const activeDate = dateFromDateTime || dateFromDayRaw || fallbackDate;
+  const mappedConferenceDate = !dateFromDateTime && !dateFromDayRaw ? mapConferenceDate(dayRaw) : null;
+  const activeDate = dateFromDateTime || dateFromDayRaw || mappedConferenceDate;
 
   const dayLabel = activeDate ? formatDateForDay(activeDate) : formatDayLabel(dayRaw) || "Unscheduled";
   const timeLabel = formatTimeLabel(timeRaw) || (dateFromDateTime ? formatDateForTime(dateFromDateTime) : "Unscheduled");
@@ -614,7 +614,7 @@ function renderSchedule(sessions) {
         people.textContent = attendees.length ? `Going: ${attendees.join(", ")}` : "Going: None selected";
         item.appendChild(people);
 
-        item.title = `${session.name}\n${session.dayLabel} • ${session.timeLabel}\nSpeaker: ${session.speaker}\n${session.description}`;
+        item.title = buildSessionTooltip(session);
         dayColumn.appendChild(item);
       });
 
@@ -627,6 +627,10 @@ function getGoingTeamMembers(sessionId) {
   return Object.entries(team)
     .filter(([, pref]) => pref.going)
     .map(([name]) => name);
+}
+
+function buildSessionTooltip(session) {
+  return `${session.name}\n${session.dayLabel} • ${session.timeLabel}\nSpeaker: ${session.speaker}\n${session.description}`;
 }
 
 function normalizeNameList(raw) {
