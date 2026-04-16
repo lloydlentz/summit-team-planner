@@ -2,6 +2,8 @@
 
 A GitHub Pages-friendly client-side app to plan conference attendance for your team.
 
+View here: https://lloydlentz.github.io/slate-session-planner-copilot
+
 ## Features
 
 - Fetches sessions from the provided JSON endpoint
