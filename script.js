@@ -1,5 +1,6 @@
 const DEFAULT_ENDPOINT = "https://slate-partners.technolutions.net/manage/query/run?id=8b7142c2-6c70-4109-9eeb-74d2494ba7c8&cmd=service&output=json&h=b0203357-4804-4c5d-8213-9e376263af44";
 const STORAGE_KEY = "summit-team-planner-state-v1";
+const DEFAULT_TEAM_MEMBERS = ["Lloyd", "Kathryn", "Austin"];
 const FALLBACK_CONFERENCE_YEAR = 2026;
 const FALLBACK_CONFERENCE_DATES = {
   wednesday: { month: 5, day: 24 },
@@ -655,7 +656,7 @@ function loadState() {
       endpoint: parsed.endpoint || DEFAULT_ENDPOINT,
       sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
       preferences: normalizedPreferences,
-      teamMembers: Array.isArray(parsed.teamMembers) ? parsed.teamMembers : [],
+      teamMembers: Array.isArray(parsed.teamMembers) ? parsed.teamMembers : [...DEFAULT_TEAM_MEMBERS],
       filters:
         parsed.filters && typeof parsed.filters === "object"
           ? { day: parsed.filters.day || "", time: parsed.filters.time || "", type: parsed.filters.type || "", status: parsed.filters.status || "", member: parsed.filters.member || "" }
@@ -667,7 +668,7 @@ function loadState() {
       endpoint: DEFAULT_ENDPOINT,
       sessions: [],
       preferences: {},
-      teamMembers: [],
+      teamMembers: [...DEFAULT_TEAM_MEMBERS],
       filters: { day: "", time: "", type: "", status: "", member: "" },
       settingsOpen: false
     };
