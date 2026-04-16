@@ -1,4 +1,4 @@
-# summit-team-planner
+# slate-session-planner-copilot
 
 A GitHub Pages-friendly client-side app to plan conference attendance for your team.
 
