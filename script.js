@@ -2,9 +2,9 @@ const DEFAULT_ENDPOINT = "https://slate-partners.technolutions.net/manage/query/
 const STORAGE_KEY = "summit-team-planner-state-v1";
 const FALLBACK_CONFERENCE_YEAR = 2026;
 const FALLBACK_CONFERENCE_DATES = {
-  wednesday: { month: 5, day: 25 },
-  thursday: { month: 5, day: 26 },
-  friday: { month: 5, day: 27 }
+  wednesday: { month: 5, day: 24 },
+  thursday: { month: 5, day: 25 },
+  friday: { month: 5, day: 26 }
 };
 
 const elements = {
