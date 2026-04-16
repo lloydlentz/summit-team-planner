@@ -38,7 +38,7 @@ const sampleSessions = [
 
 let state = loadState();
 state.filters = state.filters || { day: "", time: "", type: "" };
-state.settingsOpen = Boolean(state.settingsOpen);
+state.settingsOpen = Boolean(state.settingsOpen ?? false);
 
 elements.endpoint.value = state.endpoint || DEFAULT_ENDPOINT;
 elements.teamMembersInput.value = (state.teamMembers || []).join(", ");
@@ -138,7 +138,7 @@ function normalizeSessions(payload) {
       return {
         id,
         type: String(type),
-        typeKey: slugify(type) || "other",
+        typeKey: slugify(type) || "uncategorized",
         name: String(name),
         speaker: String(speaker),
         description: String(description),
@@ -214,7 +214,7 @@ function formatTimeLabel(value) {
 }
 
 function formatDateForDay(date) {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat("en-US", {
     weekday: "short",
     month: "short",
     day: "numeric"
@@ -222,7 +222,7 @@ function formatDateForDay(date) {
 }
 
 function formatDateForTime(date) {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
     minute: "2-digit"
   }).format(date);
