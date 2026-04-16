@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Summit Team Planner</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Summit Team Planner</h1>
+    <p>Plan conference session interest and attendance for yourself and your team.</p>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>Session Source</h2>
+      <label for="endpoint">JSON endpoint</label>
+      <div class="row">
+        <input id="endpoint" type="url" />
+        <button id="loadSessions" type="button">Load Sessions</button>
+      </div>
+      <p id="status" role="status"></p>
+    </section>
+
+    <section class="panel">
+      <h2>Team Members</h2>
+      <label for="teamMembersInput">Comma-separated names</label>
+      <div class="row">
+        <input id="teamMembersInput" type="text" placeholder="Alex, Sam, Morgan" />
+        <button id="saveTeamMembers" type="button">Save Team</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Sessions</h2>
+      <div id="sessions" class="sessions"></div>
+    </section>
+  </main>
+
+  <template id="sessionTemplate">
+    <article class="session-card">
+      <header class="session-head">
+        <h3 class="session-name"></h3>
+        <span class="session-type"></span>
+      </header>
+      <p class="session-speaker"></p>
+      <p class="session-description"></p>
+      <div class="controls">
+        <label><input class="interesting" type="checkbox" /> Looks interesting</label>
+        <label><input class="attending" type="checkbox" /> I plan to attend</label>
+      </div>
+      <label>Team attending (comma-separated)
+        <input class="team-attending" type="text" placeholder="Alex, Sam" />
+      </label>
+      <label>Notes / comments
+        <textarea class="notes" rows="3" placeholder="Planning notes for this session"></textarea>
+      </label>
+    </article>
+  </template>
+
+  <script src="script.js"></script>
+</body>
+</html>
