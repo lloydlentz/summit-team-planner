@@ -1,5 +1,11 @@
 const DEFAULT_ENDPOINT = "https://slate-partners.technolutions.net/manage/query/run?id=8b7142c2-6c70-4109-9eeb-74d2494ba7c8&cmd=service&output=json&h=b0203357-4804-4c5d-8213-9e376263af44";
 const STORAGE_KEY = "summit-team-planner-state-v1";
+const FALLBACK_CONFERENCE_YEAR = 2026;
+const FALLBACK_CONFERENCE_DATES = {
+  wednesday: { month: 5, day: 25 },
+  thursday: { month: 5, day: 26 },
+  friday: { month: 5, day: 27 }
+};
 
 const elements = {
   endpoint: document.getElementById("endpoint"),
@@ -12,7 +18,10 @@ const elements = {
   settingsPanel: document.getElementById("settingsPanel"),
   dayFilter: document.getElementById("dayFilter"),
   timeFilter: document.getElementById("timeFilter"),
-  typeFilter: document.getElementById("typeFilter")
+  typeFilter: document.getElementById("typeFilter"),
+  statusFilter: document.getElementById("statusFilter"),
+  memberFilter: document.getElementById("memberFilter"),
+  schedule: document.getElementById("schedule")
 };
 
 const sampleSessions = [
@@ -37,7 +46,9 @@ const sampleSessions = [
 ];
 
 let state = loadState();
-state.filters = state.filters || { day: "", time: "", type: "" };
+state.filters = state.filters || { day: "", time: "", type: "", status: "", member: "" };
+state.filters.status ||= "";
+state.filters.member ||= "";
 state.settingsOpen = state.settingsOpen ?? false;
 
 elements.endpoint.value = state.endpoint || DEFAULT_ENDPOINT;
@@ -63,6 +74,7 @@ function wireEvents() {
     state.settingsOpen = false;
     elements.settingsPanel.open = false;
     saveState();
+    syncFilterControls();
     renderFilteredSessions();
   });
 
@@ -85,6 +97,18 @@ function wireEvents() {
 
   elements.typeFilter.addEventListener("change", () => {
     state.filters.type = elements.typeFilter.value;
+    saveState();
+    renderFilteredSessions();
+  });
+
+  elements.statusFilter.addEventListener("change", () => {
+    state.filters.status = elements.statusFilter.value;
+    saveState();
+    renderFilteredSessions();
+  });
+
+  elements.memberFilter.addEventListener("change", () => {
+    state.filters.member = elements.memberFilter.value;
     saveState();
     renderFilteredSessions();
   });
@@ -145,7 +169,9 @@ function normalizeSessions(payload) {
         dayLabel: schedule.dayLabel,
         dayKey: schedule.dayKey,
         timeLabel: schedule.timeLabel,
-        timeKey: schedule.timeKey
+        timeKey: schedule.timeKey,
+        dateValue: schedule.dateValue,
+        startMinutes: schedule.startMinutes
       };
     })
     .filter((session) => session.name.trim().length);
@@ -159,20 +185,20 @@ function deriveSchedule(record) {
   const dateTimeRaw = pickValue(record, ["start", "start_at", "start_datetime", "datetime", "date_time"]);
 
   const dateFromDateTime = parseDate(dateTimeRaw);
+  const dateFromDayRaw = parseDate(dayRaw);
+  const mappedConferenceDate = !dateFromDateTime && !dateFromDayRaw ? mapConferenceDate(dayRaw) : null;
+  const activeDate = dateFromDateTime || dateFromDayRaw || mappedConferenceDate;
 
-  const dayLabel =
-    formatDayLabel(dayRaw) ||
-    (dateFromDateTime ? formatDateForDay(dateFromDateTime) : "Unscheduled");
-
-  const timeLabel =
-    formatTimeLabel(timeRaw) ||
-    (dateFromDateTime ? formatDateForTime(dateFromDateTime) : "Unscheduled");
+  const dayLabel = activeDate ? formatDateForDay(activeDate) : formatDayLabel(dayRaw) || "Unscheduled";
+  const timeLabel = formatTimeLabel(timeRaw) || (dateFromDateTime ? formatDateForTime(dateFromDateTime) : "Unscheduled");
 
   return {
     dayLabel,
     dayKey: slugify(dayLabel) || "unscheduled",
     timeLabel,
-    timeKey: slugify(timeLabel) || "unscheduled"
+    timeKey: slugify(timeLabel) || "unscheduled",
+    dateValue: activeDate ? activeDate.toISOString().slice(0, 10) : "",
+    startMinutes: parseTimeToMinutes(timeLabel)
   };
 }
 
@@ -213,6 +239,34 @@ function formatTimeLabel(value) {
   return raw;
 }
 
+function mapConferenceDate(dayValue) {
+  const weekday = getWeekdayName(dayValue);
+  if (!weekday || !FALLBACK_CONFERENCE_DATES[weekday]) {
+    return null;
+  }
+
+  const mapped = FALLBACK_CONFERENCE_DATES[weekday];
+  return new Date(FALLBACK_CONFERENCE_YEAR, mapped.month, mapped.day);
+}
+
+function getWeekdayName(value) {
+  if (!value) {
+    return "";
+  }
+
+  const normalized = String(value).toLowerCase();
+  if (normalized.includes("wednesday") || normalized.includes("wed")) {
+    return "wednesday";
+  }
+  if (normalized.includes("thursday") || normalized.includes("thu")) {
+    return "thursday";
+  }
+  if (normalized.includes("friday") || normalized.includes("fri")) {
+    return "friday";
+  }
+  return "";
+}
+
 function formatDateForDay(date) {
   return new Intl.DateTimeFormat("en-US", {
     weekday: "short",
@@ -226,6 +280,26 @@ function formatDateForTime(date) {
     hour: "numeric",
     minute: "2-digit"
   }).format(date);
+}
+
+function parseTimeToMinutes(value) {
+  if (!value || value === "Unscheduled") {
+    return null;
+  }
+
+  const match = String(value).trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
+  if (!match) {
+    return null;
+  }
+
+  let hour = Number(match[1]) % 12;
+  const minute = Number(match[2] || 0);
+  const period = match[3].toUpperCase();
+  if (period === "PM") {
+    hour += 12;
+  }
+
+  return hour * 60 + minute;
 }
 
 function extractRecords(payload) {
@@ -288,10 +362,21 @@ function syncFilterControls() {
   const dayOptions = createFilterOptions(sessions, "dayKey", "dayLabel");
   const timeOptions = createFilterOptions(sessions, "timeKey", "timeLabel");
   const typeOptions = createFilterOptions(sessions, "typeKey", "type");
+  const memberOptions = (state.teamMembers || []).map((member) => ({ value: member, label: member }));
 
   setSelectOptions(elements.dayFilter, dayOptions, "All days", "day");
   setSelectOptions(elements.timeFilter, timeOptions, "All times", "time");
   setSelectOptions(elements.typeFilter, typeOptions, "All session types", "type");
+  setSelectOptions(elements.memberFilter, memberOptions, "All team members", "member");
+  setSelectOptions(
+    elements.statusFilter,
+    [
+      { value: "interested", label: "Team interested" },
+      { value: "going", label: "Team going" }
+    ],
+    "All sessions",
+    "status"
+  );
 }
 
 function createFilterOptions(sessions, keyField, labelField) {
@@ -339,10 +424,13 @@ function renderFilteredSessions() {
     const dayMatches = !state.filters.day || session.dayKey === state.filters.day;
     const timeMatches = !state.filters.time || session.timeKey === state.filters.time;
     const typeMatches = !state.filters.type || session.typeKey === state.filters.type;
-    return dayMatches && timeMatches && typeMatches;
+    const statusMatches = !state.filters.status || hasTeamStatus(session.id, state.filters.status, state.filters.member);
+    const memberMatches = !state.filters.member || hasAnyTeamPreference(session.id, state.filters.member);
+    return dayMatches && timeMatches && typeMatches && statusMatches && memberMatches;
   });
 
   renderSessions(filtered);
+  renderSchedule(filtered);
 }
 
 function renderSessions(sessions) {
@@ -390,19 +478,16 @@ function renderSessions(sessions) {
         const prefs = state.preferences?.[session.id] || {};
         const interesting = fragment.querySelector(".interesting");
         const attending = fragment.querySelector(".attending");
-        const teamAttending = fragment.querySelector(".team-attending");
+        const teamControls = fragment.querySelector(".team-controls");
         const notes = fragment.querySelector(".notes");
 
         interesting.checked = Boolean(prefs.interesting);
         attending.checked = Boolean(prefs.attending);
-        teamAttending.value = (prefs.teamAttending || []).join(", ");
         notes.value = prefs.notes || "";
+        renderTeamControls(session.id, teamControls);
 
         interesting.addEventListener("change", () => updatePreference(session.id, "interesting", interesting.checked));
         attending.addEventListener("change", () => updatePreference(session.id, "attending", attending.checked));
-        teamAttending.addEventListener("change", () =>
-          updatePreference(session.id, "teamAttending", filterToKnownTeam(teamAttending.value))
-        );
         notes.addEventListener("change", () => updatePreference(session.id, "notes", notes.value.trim()));
 
         groupWrap.appendChild(fragment);
@@ -410,21 +495,142 @@ function renderSessions(sessions) {
     });
 }
 
-function filterToKnownTeam(rawInput) {
-  const requested = normalizeNameList(rawInput);
-  if (!state.teamMembers?.length) {
-    return requested;
-  }
-
-  const validTeam = new Set(state.teamMembers.map((member) => member.toLowerCase()));
-  return requested.filter((member) => validTeam.has(member.toLowerCase()));
-}
-
 function updatePreference(sessionId, key, value) {
   state.preferences ||= {};
   state.preferences[sessionId] ||= {};
   state.preferences[sessionId][key] = value;
   saveState();
+}
+
+function renderTeamControls(sessionId, root) {
+  root.innerHTML = "";
+
+  if (!state.teamMembers?.length) {
+    const hint = document.createElement("p");
+    hint.className = "team-controls-empty";
+    hint.textContent = "Add team members in Settings to track team interest and attendance.";
+    root.appendChild(hint);
+    return;
+  }
+
+  const title = document.createElement("p");
+  title.className = "team-controls-title";
+  title.textContent = "Team";
+  root.appendChild(title);
+
+  state.teamMembers.forEach((member) => {
+    const row = document.createElement("div");
+    row.className = "team-member-row";
+
+    const name = document.createElement("span");
+    name.className = "team-member-name";
+    name.textContent = member;
+    row.appendChild(name);
+
+    const interestedLabel = document.createElement("label");
+    const interested = document.createElement("input");
+    interested.type = "checkbox";
+    interested.checked = Boolean(getTeamPreference(sessionId, member).interested);
+    interested.addEventListener("change", () => updateTeamPreference(sessionId, member, "interested", interested.checked));
+    interestedLabel.append(interested, " Interested");
+    row.appendChild(interestedLabel);
+
+    const goingLabel = document.createElement("label");
+    const going = document.createElement("input");
+    going.type = "checkbox";
+    going.checked = Boolean(getTeamPreference(sessionId, member).going);
+    going.addEventListener("change", () => updateTeamPreference(sessionId, member, "going", going.checked));
+    goingLabel.append(going, " Going");
+    row.appendChild(goingLabel);
+
+    root.appendChild(row);
+  });
+}
+
+function getTeamPreference(sessionId, member) {
+  const teamPrefs = state.preferences?.[sessionId]?.team || {};
+  return teamPrefs[member] || { interested: false, going: false };
+}
+
+function updateTeamPreference(sessionId, member, key, value) {
+  state.preferences ||= {};
+  state.preferences[sessionId] ||= {};
+  state.preferences[sessionId].team ||= {};
+  state.preferences[sessionId].team[member] ||= { interested: false, going: false };
+  state.preferences[sessionId].team[member][key] = value;
+  saveState();
+  renderFilteredSessions();
+}
+
+function hasAnyTeamPreference(sessionId, member) {
+  const prefs = getTeamPreference(sessionId, member);
+  return Boolean(prefs.interested || prefs.going);
+}
+
+function hasTeamStatus(sessionId, status, member) {
+  const team = state.preferences?.[sessionId]?.team || {};
+  const membersToCheck = member ? [member] : Object.keys(team);
+  return membersToCheck.some((name) => Boolean(team[name]?.[status]));
+}
+
+function renderSchedule(sessions) {
+  elements.schedule.innerHTML = "";
+
+  const scheduled = sessions.filter((session) => session.dateValue && Number.isFinite(session.startMinutes));
+  if (!scheduled.length) {
+    elements.schedule.textContent = "No scheduled sessions for the selected filters.";
+    return;
+  }
+
+  const dayMap = new Map();
+  scheduled.forEach((session) => {
+    if (!dayMap.has(session.dateValue)) {
+      dayMap.set(session.dateValue, []);
+    }
+    dayMap.get(session.dateValue).push(session);
+  });
+
+  [...dayMap.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .forEach(([, daySessions]) => {
+      daySessions.sort((a, b) => a.startMinutes - b.startMinutes);
+      const dayColumn = document.createElement("section");
+      dayColumn.className = "schedule-day";
+
+      const dayTitle = document.createElement("h3");
+      dayTitle.textContent = daySessions[0].dayLabel;
+      dayColumn.appendChild(dayTitle);
+
+      daySessions.forEach((session) => {
+        const item = document.createElement("article");
+        item.className = "schedule-item";
+
+        const heading = document.createElement("strong");
+        heading.textContent = `${session.timeLabel} — ${session.name}`;
+        item.appendChild(heading);
+
+        const attendees = getGoingTeamMembers(session.id);
+        const people = document.createElement("p");
+        people.textContent = attendees.length ? `Going: ${attendees.join(", ")}` : "Going: None selected";
+        item.appendChild(people);
+
+        item.title = buildSessionTooltip(session);
+        dayColumn.appendChild(item);
+      });
+
+      elements.schedule.appendChild(dayColumn);
+    });
+}
+
+function getGoingTeamMembers(sessionId) {
+  const team = state.preferences?.[sessionId]?.team || {};
+  return Object.entries(team)
+    .filter(([, pref]) => pref.going)
+    .map(([name]) => name);
+}
+
+function buildSessionTooltip(session) {
+  return `${session.name}\n${session.dayLabel} • ${session.timeLabel}\nSpeaker: ${session.speaker}\n${session.description}`;
 }
 
 function normalizeNameList(raw) {
@@ -444,12 +650,16 @@ function slugify(value) {
 function loadState() {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    const normalizedPreferences = normalizeStoredPreferences(parsed.preferences);
     return {
       endpoint: parsed.endpoint || DEFAULT_ENDPOINT,
       sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
-      preferences: parsed.preferences && typeof parsed.preferences === "object" ? parsed.preferences : {},
+      preferences: normalizedPreferences,
       teamMembers: Array.isArray(parsed.teamMembers) ? parsed.teamMembers : [],
-      filters: parsed.filters && typeof parsed.filters === "object" ? parsed.filters : { day: "", time: "", type: "" },
+      filters:
+        parsed.filters && typeof parsed.filters === "object"
+          ? { day: parsed.filters.day || "", time: parsed.filters.time || "", type: parsed.filters.type || "", status: parsed.filters.status || "", member: parsed.filters.member || "" }
+          : { day: "", time: "", type: "", status: "", member: "" },
       settingsOpen: Boolean(parsed.settingsOpen)
     };
   } catch (_) {
@@ -458,10 +668,35 @@ function loadState() {
       sessions: [],
       preferences: {},
       teamMembers: [],
-      filters: { day: "", time: "", type: "" },
+      filters: { day: "", time: "", type: "", status: "", member: "" },
       settingsOpen: false
     };
   }
+}
+
+function normalizeStoredPreferences(rawPreferences) {
+  if (!rawPreferences || typeof rawPreferences !== "object") {
+    return {};
+  }
+
+  const normalized = {};
+  Object.entries(rawPreferences).forEach(([sessionId, prefs]) => {
+    const safePrefs = prefs && typeof prefs === "object" ? { ...prefs } : {};
+    const team = safePrefs.team && typeof safePrefs.team === "object" ? { ...safePrefs.team } : {};
+
+    if (Array.isArray(safePrefs.teamAttending)) {
+      safePrefs.teamAttending.forEach((name) => {
+        team[name] ||= { interested: false, going: false };
+        team[name].going = true;
+      });
+      delete safePrefs.teamAttending;
+    }
+
+    safePrefs.team = team;
+    normalized[sessionId] = safePrefs;
+  });
+
+  return normalized;
 }
 
 function saveState() {

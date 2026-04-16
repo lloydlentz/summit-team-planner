@@ -113,6 +113,41 @@ button {
   margin-bottom: 0.55rem;
 }
 
+.team-controls {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.55rem;
+  margin-bottom: 0.65rem;
+}
+
+.team-controls-title {
+  margin: 0 0 0.4rem;
+  font-weight: 700;
+}
+
+.team-controls-empty {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.team-member-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto auto;
+  gap: 0.55rem;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.team-member-name {
+  font-weight: 600;
+}
+
+.team-member-row label {
+  margin: 0;
+  white-space: nowrap;
+}
+
 label {
   display: block;
   margin-bottom: 0.45rem;
@@ -138,4 +173,31 @@ label {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 0.75rem;
+}
+
+.schedule {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.9rem;
+}
+
+.schedule-day {
+  background: #fff;
+  border: 1px solid #dbe3ef;
+  border-radius: 10px;
+  padding: 0.8rem;
+}
+
+.schedule-item {
+  border: 1px solid #cbd5e1;
+  border-left: 4px solid #2563eb;
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+  margin-bottom: 0.5rem;
+  background: #f8fbff;
+}
+
+.schedule-item p {
+  margin: 0.3rem 0 0;
+  color: #334155;
 }
