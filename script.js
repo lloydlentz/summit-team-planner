@@ -38,7 +38,7 @@ const sampleSessions = [
 
 let state = loadState();
 state.filters = state.filters || { day: "", time: "", type: "" };
-state.settingsOpen = Boolean(state.settingsOpen ?? false);
+state.settingsOpen = state.settingsOpen ?? false;
 
 elements.endpoint.value = state.endpoint || DEFAULT_ENDPOINT;
 elements.teamMembersInput.value = (state.teamMembers || []).join(", ");
